@@ -1,8 +1,11 @@
-langchain
+typing
+typing-inspect
+typing_extensions
 openai
-PyPDF2
+langchain
+chroma
+chromadb
+pydantic
 python-dotenv
 gradio
-faiss-cpu
 datetime
-Chroma

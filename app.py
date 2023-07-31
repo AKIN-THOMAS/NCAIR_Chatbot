@@ -1,20 +1,14 @@
 import datetime
 import gradio as gr
 from dotenv import load_dotenv
-# from PyPDF2 import PdfReader
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.document_loaders import PyPDFLoader
 from langchain.vectorstores import Chroma
 from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import FAISS
-from langchain.chains.question_answering import load_qa_chain
-from langchain.llms import OpenAI
-from langchain.callbacks import get_openai_callback
 from langchain.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.chains import RetrievalQA
-from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
+from langchain.memory import ConversationBufferMemory
+
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -24,10 +18,10 @@ if current_date < datetime.date(2023, 9, 2):
     llm_name = "gpt-3.5-turbo-0301"
 else:
     llm_name = "gpt-3.5-turbo"
-print(llm_name)
+# print(llm_name)
 
 
-def chatWithNCAIR(message, history):
+def chatWithNCAIR(question, history):
     load_dotenv()
 
     persist_directory = 'docs/chroma/'
@@ -36,20 +30,20 @@ def chatWithNCAIR(message, history):
                       embedding_function=embedding)
     llm = ChatOpenAI(model_name=llm_name, temperature=0)
 
-    template = """Use the following pieces of context to answer the question at the end. 
-    If you don't know the answer, just say that you don't know, 
-    don't try to make up an answer. Use three sentences maximum. 
-    Keep the answer as concise as possible. 
-    Always say "thank you for choosing NCAIR BOT!" 
-    at the end of the answer. 
-
+    template = """If the user says any greetings and says their name like "hello I'm bishop", always reply by greeting the person and saying his name  
+    Use the following pieces of context to answer the question at the end. 
+    If you don't know the answer, just say that you don't know, don't try to make up an answer. 
+    Use three sentences maximum. Keep the answer as concise as possible. 
+    Always be nice at the end of the answer. Make sure you remember the last conversation, especially if the user told you their name 
     {context}
-    Question: {message}
+    Question: {question}
     Helpful Answer:"""
     QA_CHAIN_PROMPT = PromptTemplate(
-        input_variables=["context", "message"], template=template,)
+        input_variables=["context", "question"], template=template,)
 
     # Run chain
+    from langchain.chains import RetrievalQA
+    # question = "Will interns go through the fabLab during the onboarding?"
     qa_chain = RetrievalQA.from_chain_type(llm,
                                            retriever=vectordb.as_retriever(),
                                            return_source_documents=True,
@@ -59,17 +53,18 @@ def chatWithNCAIR(message, history):
         memory_key="chat_history",
         return_messages=True
     )
-
     retriever = vectordb.as_retriever()
     qa = ConversationalRetrievalChain.from_llm(
-        llm, retriever=retriever, memory=memory)
+        llm,
+        retriever=retriever,
+        memory=memory,
+    )
 
-    result = qa({"question": message})
-    # print(result["answer"])
-    return result["answer"]
+    # result = qa({"question": question})
+    result = qa_chain({"query": question})
+    # return result["answer"]
+    return result["result"]
 
-
-chatWithNCAIR("When was NCAIR founded?", "")
 
 demo = gr.ChatInterface(fn=chatWithNCAIR,
                         chatbot=gr.Chatbot(height=300, min_width=40),
@@ -83,4 +78,4 @@ demo = gr.ChatInterface(fn=chatWithNCAIR,
                         undo_btn="Delete Previous",
                         clear_btn="Clear",)
 
-demo.launch(share=True)
+demo.launch(inline=False)
